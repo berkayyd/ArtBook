@@ -14,11 +14,52 @@ class DetailsVC: UIViewController, UIImagePickerControllerDelegate & UINavigatio
     @IBOutlet weak var nameText: UITextField!
     @IBOutlet weak var artistText: UITextField!
     @IBOutlet weak var yearText: UITextField!
+    @IBOutlet weak var savebtn: UIButton!
     
+    var chosenPainting = ""
+    var chosenPaintingId : UUID?
     
     override func viewDidLoad() {
         super.viewDidLoad()
-
+        
+        if chosenPainting != "" {
+            savebtn.isHidden = true
+            //Core Data
+            let appDelegate = UIApplication.shared.delegate as! AppDelegate
+            let context = appDelegate.persistentContainer.viewContext
+            
+            let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Paintings")
+            fetchRequest.returnsObjectsAsFaults = false
+            
+            let idString = chosenPaintingId?.uuidString
+            
+            fetchRequest.predicate = NSPredicate(format: "id = %@", idString!)
+            
+            do{
+                let result = try context.fetch(fetchRequest) as! [NSManagedObject]
+                if let name = result[0].value(forKey: "name") as? String{
+                    nameText.text = name
+                }
+                
+                if let artist = result[0].value(forKey: "artist") as? String {
+                    artistText.text = artist
+                }
+                
+                if let year = result[0].value(forKey: "year") as? Int {
+                    yearText.text = String(year)
+                }
+                
+                if let photo = result[0].value(forKey: "image") as? Data {
+                    imageView.image = UIImage(data: photo)
+                }
+                
+                
+            }catch{
+                print("ERROR")
+            }
+        }else{
+            savebtn.isEnabled = false
+        }
         
         // Gesture Recognizers
         
@@ -40,8 +81,8 @@ class DetailsVC: UIViewController, UIImagePickerControllerDelegate & UINavigatio
     }
     
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-        
         imageView.image = info[.originalImage] as? UIImage
+        savebtn.isEnabled = true
         self.dismiss(animated: true)
         
     }
@@ -60,7 +101,7 @@ class DetailsVC: UIViewController, UIImagePickerControllerDelegate & UINavigatio
         newPainting.setValue(artistText.text, forKey: "artist")
         
         if let year = Int(yearText.text!){
-            newPainting.setValue(yearText.text, forKey: "year")
+            newPainting.setValue(year, forKey: "year")
         }
         
         newPainting.setValue(UUID(), forKey: "id")
@@ -74,5 +115,9 @@ class DetailsVC: UIViewController, UIImagePickerControllerDelegate & UINavigatio
         }catch{
             print("error")
         }
+        
+        NotificationCenter.default.post(name: NSNotification.Name("newData"), object: nil)
+        self.navigationController?.popViewController(animated: true)
+        
     }
 }
